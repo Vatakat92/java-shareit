@@ -12,7 +12,7 @@ import java.net.URI;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
-@RestController
+@RestController("itemApiController")
 @RequiredArgsConstructor
 @RequestMapping("/items")
 @Slf4j
