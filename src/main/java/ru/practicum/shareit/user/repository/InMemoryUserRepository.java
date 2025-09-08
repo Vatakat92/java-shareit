@@ -26,7 +26,7 @@ public class InMemoryUserRepository implements UserRepository {
         if (user == null) {
             throw new IllegalArgumentException("User cannot be null");
         }
-        
+
         if (user.getId() == null) {
             user.setId(idSequence.incrementAndGet());
         } else if (storage.containsKey(user.getId())) {
@@ -35,7 +35,7 @@ public class InMemoryUserRepository implements UserRepository {
                 emailIndex.remove(existing.getEmail().toLowerCase());
             }
         }
-        
+
         Long userId = user.getId();
         storage.put(userId, user);
         if (user.getEmail() != null) {
@@ -48,7 +48,7 @@ public class InMemoryUserRepository implements UserRepository {
     public Optional<User> findById(Long id) {
         return Optional.ofNullable(storage.get(id));
     }
-    
+
     @Override
     public void deleteById(Long id) {
         User user = storage.remove(id);
@@ -56,7 +56,7 @@ public class InMemoryUserRepository implements UserRepository {
             emailIndex.remove(user.getEmail().toLowerCase());
         }
     }
-    
+
     @Override
     public boolean existsByEmail(String email) {
         if (email == null) {

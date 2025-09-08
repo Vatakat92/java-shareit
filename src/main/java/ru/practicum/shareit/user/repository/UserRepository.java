@@ -13,8 +13,8 @@ public interface UserRepository {
     Optional<User> findById(Long id);
 
     void deleteById(Long id);
-    
+
     boolean existsByEmail(String email);
-    
+
     boolean existsById(Long id);
 }

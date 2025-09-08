@@ -27,7 +27,7 @@ public class InMemoryItemRepository implements ItemRepository {
     public Item save(Item item) {
         Long itemId = item.getId();
         boolean isNew = (itemId == null);
-        
+
         if (isNew) {
             itemId = idSequence.incrementAndGet();
             item.setId(itemId);
@@ -50,9 +50,9 @@ public class InMemoryItemRepository implements ItemRepository {
         if (item.getOwner() != null && item.getOwner().getId() != null) {
             Long ownerId = item.getOwner().getId();
             userItems.computeIfAbsent(ownerId, k -> ConcurrentHashMap.newKeySet())
-                   .add(itemId);
+                    .add(itemId);
         }
-        
+
         return item;
     }
 
