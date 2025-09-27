@@ -1,18 +1,21 @@
 package ru.practicum.shareit.exception;
 
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.time.Instant;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
@@ -20,80 +23,115 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException ex) {
-        log.warn("400 Bad Request: {}", ex.getMessage());
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage());
+    @ExceptionHandler({IllegalArgumentException.class, ValidationException.class})
+    public ResponseEntity<ErrorResponse> handleBadRequest(RuntimeException ex) {
+        String message = ex.getMessage() != null ? ex.getMessage() : "Bad request occurred";
+        return logAndBuild(HttpStatus.BAD_REQUEST, message, null, ex);
     }
 
     @ExceptionHandler(ConflictException.class)
-    public ResponseEntity<Map<String, Object>> handleConflict(ConflictException ex) {
-        log.warn("409 Conflict: {}", ex.getMessage());
-        return build(HttpStatus.CONFLICT, ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleConflict(ConflictException ex) {
+        String message = ex.getMessage() != null ? ex.getMessage() : "Conflict occurred";
+        return logAndBuild(HttpStatus.CONFLICT, message, null, ex);
     }
 
-    @ExceptionHandler({SecurityException.class})
-    public ResponseEntity<Map<String, Object>> handleForbidden(RuntimeException ex) {
-        log.warn("403 Forbidden: {}", ex.getMessage());
-        return build(HttpStatus.FORBIDDEN, ex.getMessage());
+    @ExceptionHandler({java.lang.SecurityException.class, SecurityException.class})
+    public ResponseEntity<ErrorResponse> handleForbidden(Exception ex) {
+        String message = ex.getMessage() != null ? ex.getMessage() : "Forbidden access";
+        return logAndBuild(HttpStatus.FORBIDDEN, message, null, ex);
     }
 
-    @ExceptionHandler(NoSuchElementException.class)
-    public ResponseEntity<Map<String, Object>> handleNotFound(NoSuchElementException ex) {
-        log.warn("404 Not Found: {}", ex.getMessage());
-        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    @ExceptionHandler({NoSuchElementException.class, EntityNotFoundException.class})
+    public ResponseEntity<ErrorResponse> handleNotFound(RuntimeException ex) {
+        String message = ex.getMessage() != null ? ex.getMessage() : "Resource not found";
+        return logAndBuild(HttpStatus.NOT_FOUND, message, null, ex);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex) {
+        int code = ex.getStatusCode().value();
+        HttpStatus status = HttpStatus.resolve(code);
+        if (status == null) {
+            status = HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        String message = ex.getReason() != null ? ex.getReason() : ex.getMessage();
+        return logAndBuild(status, message, null, ex);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
-        String message = ex.getBindingResult().getFieldErrors().stream()
-                .map(err -> err.getField() + ": " + err.getDefaultMessage())
+    public ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
+        List<FieldErrorDto> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> new FieldErrorDto(error.getField(), error.getDefaultMessage()))
+                .collect(Collectors.toList());
+        String joined = fieldErrors.stream()
+                .map(fe -> fe.getField() + ": " + fe.getMessage())
                 .collect(Collectors.joining(", "));
-        if (message.isBlank()) message = "Validation failed";
-        log.warn("400 Validation failed: {}", message);
-        return build(HttpStatus.BAD_REQUEST, message);
+        return logAndBuild(HttpStatus.BAD_REQUEST, "Validation failed: " + joined, fieldErrors, ex);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<Map<String, Object>> handleConstraintViolation(ConstraintViolationException ex) {
-        String message = ex.getConstraintViolations().stream()
-                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
+        List<FieldErrorDto> fieldErrors = ex.getConstraintViolations().stream()
+                .map(violation -> {
+                    String path = violation.getPropertyPath().toString();
+                    String field = path.contains(".") ? path.substring(path.lastIndexOf('.') + 1) : path;
+                    return new FieldErrorDto(field, violation.getMessage());
+                })
+                .collect(Collectors.toList());
+        String joined = fieldErrors.stream()
+                .map(fe -> fe.getField() + ": " + fe.getMessage())
                 .collect(Collectors.joining(", "));
-        if (message.isBlank()) message = "Constraint violation";
-        log.warn("400 Constraint violation: {}", message);
-        return build(HttpStatus.BAD_REQUEST, message);
+        return logAndBuild(HttpStatus.BAD_REQUEST, "Validation failed: " + joined, fieldErrors, ex);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<Map<String, Object>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
-        String message = String.format("Parameter '%s' has invalid value '%s'", ex.getName(), ex.getValue());
-        log.warn("400 Type mismatch: {}", message);
-        return build(HttpStatus.BAD_REQUEST, message);
+    public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        String typeName = ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown";
+        String value = ex.getValue() != null ? ex.getValue().toString() : "null";
+        String message = String.format("Parameter '%s' should be a valid '%s' but was '%s'",
+                ex.getName(), typeName, value);
+        return logAndBuild(HttpStatus.BAD_REQUEST, message, null, ex);
     }
 
     @ExceptionHandler(MissingRequestHeaderException.class)
-    public ResponseEntity<Map<String, Object>> handleMissingHeader(MissingRequestHeaderException ex) {
-        log.warn("400 Missing header: {}", ex.getMessage());
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleMissingHeader(MissingRequestHeaderException ex) {
+        String message = "Required request header '" + ex.getHeaderName() + "' is not present";
+        return logAndBuild(HttpStatus.BAD_REQUEST, message, null, ex);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<Map<String, Object>> handleUnreadable(HttpMessageNotReadableException ex) {
-        log.warn("400 Malformed JSON: {}", ex.getMessage());
-        return build(HttpStatus.BAD_REQUEST, "Malformed JSON request");
+    public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex) {
+        String message = "Malformed JSON request";
+        return logAndBuild(HttpStatus.BAD_REQUEST, message, null, ex);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleOther(Exception ex) {
-        log.error("500 Internal Server Error", ex);
-        return build(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleOther(Exception ex) {
+        return logAndBuild(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", null, ex);
     }
 
-    private ResponseEntity<Map<String, Object>> build(HttpStatus status, String message) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("status", status.value());
-        body.put("error", status.getReasonPhrase());
-        body.put("message", message);
-        return ResponseEntity.status(status).body(body);
+    private ResponseEntity<ErrorResponse> logAndBuild(HttpStatus status, String message,
+                                                      List<FieldErrorDto> errors, Exception ex) {
+        if (status.is4xxClientError()) {
+            if (ex != null && ex.getMessage() != null) {
+                log.warn("{} {}: {}", status.value(), status.getReasonPhrase(), ex.getMessage());
+            } else {
+                log.warn("{} {}: {}", status.value(), status.getReasonPhrase(), message);
+            }
+        } else {
+            log.error("{} {}: {}", status.value(), status.getReasonPhrase(), message, ex);
+        }
+        return build(status, message, errors);
+    }
+
+    private ResponseEntity<ErrorResponse> build(HttpStatus status, String message, List<FieldErrorDto> errors) {
+        ErrorResponse body = ErrorResponse.builder()
+                .status(status.value())
+                .error(status.getReasonPhrase())
+                .message(message)
+                .timestamp(Instant.now().toString())
+                .errors(errors)
+                .build();
+        return new ResponseEntity<>(body, status);
     }
 }

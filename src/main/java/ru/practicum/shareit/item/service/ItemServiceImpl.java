@@ -1,151 +1,117 @@
 package ru.practicum.shareit.item.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import org.springframework.validation.annotation.Validated;
+import ru.practicum.shareit.booking.mapper.BookingMapper;
+import ru.practicum.shareit.booking.repository.BookingRepository;
+import ru.practicum.shareit.exception.SecurityException;
 import ru.practicum.shareit.item.dto.ItemDto;
+import ru.practicum.shareit.item.dto.ItemResponseDto;
 import ru.practicum.shareit.item.mapper.ItemMapper;
 import ru.practicum.shareit.item.model.Item;
+import ru.practicum.shareit.item.repository.CommentRepository;
 import ru.practicum.shareit.item.repository.ItemRepository;
+import ru.practicum.shareit.request.repository.ItemRequestRepository;
 import ru.practicum.shareit.user.model.User;
-import ru.practicum.shareit.user.mapper.UserMapper;
-import ru.practicum.shareit.user.service.UserService;
+import ru.practicum.shareit.user.repository.UserRepository;
 
-import java.util.*;
-
-import static ru.practicum.shareit.item.mapper.ItemMapper.toItemDto;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+import ru.practicum.shareit.item.mapper.CommentMapper;
+import ru.practicum.shareit.item.dto.CommentDto;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
-@Validated
 public class ItemServiceImpl implements ItemService {
-    private static final Comparator<Item> BY_ID = Comparator.comparing(Item::getId);
-
     private final ItemRepository itemRepository;
-    private final UserService userService;
+    private final UserRepository userRepository;
+    private final BookingRepository bookingRepository;
+    private final CommentRepository commentRepository;
+    private final ItemRequestRepository requestRepository;
 
     @Override
-    public ItemDto createItem(ItemDto dto, Long ownerId) {
-        logAction("Create item", "ownerId", ownerId, "name", dto != null ? dto.getName() : null);
-        validateItemDtoNotNull(dto);
-        validateOwnerExists(ownerId);
-
-        User owner = UserMapper.toUser(userService.getUserById(ownerId));
-        Item item = itemRepository.save(ItemMapper.toItem(dto, owner));
-
-        log.debug("Item created: id={} ownerId={}", item.getId(), ownerId);
-        return toItemDto(item);
-    }
-
-    @Override
-    public ItemDto updateItem(Long itemId, ItemDto dto, Long ownerId) {
-        logAction("Update item", "id", itemId, "ownerId", ownerId);
-
-        Item existing = getExistingItem(itemId);
-        checkOwner(existing, ownerId);
-
-        if (dto == null) {
-            log.warn("Attempt to update item with null DTO");
-            return toItemDto(existing);
+    public ItemDto createItem(Long userId, ItemDto itemDto) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
+        Item item = ItemMapper.toEntity(itemDto, user);
+        if (itemDto.getRequestId() != null) {
+            item.setRequest(requestRepository.findById(itemDto.getRequestId())
+                    .orElseThrow(() -> new EntityNotFoundException("Request not found: " + itemDto.getRequestId())));
         }
-        boolean changed = false;
-
-        if (dto.getName() != null && !dto.getName().equals(existing.getName())) {
-            existing.setName(dto.getName());
-            changed = true;
-        }
-        if (dto.getDescription() != null && !dto.getDescription().equals(existing.getDescription())) {
-            existing.setDescription(dto.getDescription());
-            changed = true;
-        }
-        if (dto.getAvailable() != null && !dto.getAvailable().equals(existing.getAvailable())) {
-            existing.setAvailable(dto.getAvailable());
-            changed = true;
-        }
-
-        if (!changed) {
-            log.debug("No changes for item id={}, skipping save", itemId);
-            return toItemDto(existing);
-        }
-
-        itemRepository.save(existing);
-        log.debug("Item updated: id={}", itemId);
-        return toItemDto(existing);
+        return ItemMapper.toDto(itemRepository.save(item));
     }
 
     @Override
-    public ItemDto getItemById(Long itemId) {
-        logAction("Get item", "id", itemId);
-        return toItemDto(getExistingItem(itemId));
+    public ItemDto updateItem(Long userId, Long itemId, ItemDto itemDto) {
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new EntityNotFoundException("Item not found: " + itemId));
+        if (!item.getOwner().getId().equals(userId)) {
+            throw new SecurityException("Only owner can update item: " + itemId);
+        }
+        if (itemDto.getName() != null) {
+            item.setName(itemDto.getName());
+        }
+        if (itemDto.getDescription() != null) {
+            item.setDescription(itemDto.getDescription());
+        }
+        if (itemDto.getAvailable() != null) {
+            item.setAvailable(itemDto.getAvailable());
+        }
+        return ItemMapper.toDto(itemRepository.save(item));
     }
 
     @Override
-    public List<ItemDto> getAllItemsByOwner(Long ownerId) {
-        logAction("Get all items by owner", "ownerId", ownerId);
-        return itemRepository.findByUserId(ownerId).stream()
-                .sorted(BY_ID)
-                .map(ItemMapper::toItemDto)
-                .toList();
+    public ItemResponseDto getItem(Long itemId, Long userId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new EntityNotFoundException("Item not found: " + itemId));
+        List<CommentDto> comments = commentRepository.findByItemId(itemId).stream()
+                .map(CommentMapper::toDto)
+                .collect(Collectors.toList());
+        ItemResponseDto dto = ItemMapper.toItemResponseDto(item, comments);
+        if (item.getOwner().getId().equals(userId)) {
+            LocalDateTime now = LocalDateTime.now();
+            dto.setLastBooking(bookingRepository.findLastBooking(itemId, now)
+                    .map(BookingMapper::toShortDto).orElse(null));
+            dto.setNextBooking(bookingRepository.findNextBooking(itemId, now)
+                    .map(BookingMapper::toShortDto).orElse(null));
+        }
+        return dto;
     }
 
     @Override
-    public List<ItemDto> searchItems(String text) {
-        logAction("Search items", "query", text);
-        if (text == null || text.isBlank()) return List.of();
-
-        String query = text.toLowerCase(Locale.ROOT);
-        return itemRepository.findAll().stream()
-                .filter(item -> matches(item, query))
-                .sorted(BY_ID)
-                .map(ItemMapper::toItemDto)
-                .toList();
+    public List<ItemResponseDto> getUserItems(Long userId, int from, int size) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
+        PageRequest page = PageRequest.of(from / size, size);
+        LocalDateTime now = LocalDateTime.now();
+        return itemRepository.findByOwnerIdOrderById(userId, page).stream()
+                .map(item -> {
+                    List<CommentDto> comments = commentRepository.findByItemId(item.getId()).stream()
+                            .map(CommentMapper::toDto)
+                            .collect(Collectors.toList());
+                    ItemResponseDto dto = ItemMapper.toItemResponseDto(item, comments);
+                    dto.setLastBooking(bookingRepository.findLastBooking(item.getId(), now)
+                            .map(BookingMapper::toShortDto).orElse(null));
+                    dto.setNextBooking(bookingRepository.findNextBooking(item.getId(), now)
+                            .map(BookingMapper::toShortDto).orElse(null));
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 
-    private void validateItemDtoNotNull(ItemDto dto) {
-        if (dto == null) {
-            log.warn("Item DTO cannot be null");
-            throw new IllegalArgumentException("Item DTO cannot be null");
+    @Override
+    public List<ItemDto> searchItems(String text, int from, int size) {
+        if (text == null || text.isBlank()) {
+            return List.of();
         }
-    }
-
-    private void validateOwnerExists(Long ownerId) {
-        log.debug("Validating owner existence: {}", ownerId);
-        userService.getUserById(ownerId);
-    }
-
-    private Item getExistingItem(Long itemId) {
-        return itemRepository.findById(itemId)
-                .orElseThrow(() -> {
-                    log.warn("Item not found: {}", itemId);
-                    return new NoSuchElementException("Item not found: " + itemId);
-                });
-    }
-
-    private void checkOwner(Item item, Long ownerId) {
-        Long actualOwnerId = item.getOwner() != null ? item.getOwner().getId() : null;
-        if (!Objects.equals(actualOwnerId, ownerId)) {
-            log.warn("Forbidden operation by user {} on item {}", ownerId, item.getId());
-            throw new SecurityException("Only owner can perform this operation");
-        }
-    }
-
-    private void logAction(String action, Object... kvPairs) {
-        StringBuilder sb = new StringBuilder(action).append(": ");
-        for (int i = 0; i < kvPairs.length; i += 2) {
-            sb.append(kvPairs[i]).append('=').append(kvPairs[i + 1]);
-            if (i + 2 < kvPairs.length) sb.append(", ");
-        }
-        log.debug(sb.toString());
-    }
-
-    private static boolean matches(Item item, String query) {
-        String name = item.getName();
-        String desc = item.getDescription();
-        return Boolean.TRUE.equals(item.getAvailable()) &&
-                ((name != null && name.toLowerCase(Locale.ROOT).contains(query)) ||
-                        (desc != null && desc.toLowerCase(Locale.ROOT).contains(query)));
+        PageRequest page = PageRequest.of(from / size, size);
+        return itemRepository.search(text, page).stream()
+                .map(ItemMapper::toDto)
+                .collect(Collectors.toList());
     }
 }
-

@@ -2,26 +2,27 @@ package ru.practicum.shareit.item.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import ru.practicum.shareit.validation.Create;
-import ru.practicum.shareit.validation.Update;
 
 @Data
-@AllArgsConstructor
+@Builder
 @NoArgsConstructor
+@AllArgsConstructor
 public class ItemDto {
     private Long id;
-    @NotBlank(message = "name must not be blank", groups = {Create.class})
-    @Size(min = 1, message = "name must not be blank", groups = {Update.class})
+
+    @NotBlank(groups = Create.class, message = "Name cannot be empty")
     private String name;
-    @NotBlank(message = "description must not be blank", groups = {Create.class})
-    @Size(min = 1, message = "description must not be blank", groups = {Update.class})
+
+    @NotBlank(groups = Create.class, message = "Description cannot be empty")
     private String description;
-    @NotNull(message = "available must not be null", groups = {Create.class})
+
+    @NotNull(groups = Create.class, message = "Available status is required")
     private Boolean available;
+
     private Long requestId;
 }
-
