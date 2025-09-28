@@ -61,11 +61,11 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public BookingResponseDto approveBooking(Long userId, Long bookingId, Boolean approved) {
-        log.debug("{} booking: {} by user: {}", approved ? "Approving" : "Rejecting", bookingId, userId);
         if (approved == null) {
             log.error("Approved status is null for booking: {}", bookingId);
             throw new IllegalArgumentException("Approved status cannot be null");
         }
+        log.debug("{} booking: {} by user: {}", approved ? "Approving" : "Rejecting", bookingId, userId);
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> {
                     log.error("Booking not found: {}", bookingId);
