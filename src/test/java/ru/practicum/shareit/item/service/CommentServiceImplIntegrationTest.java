@@ -1,7 +1,6 @@
 package ru.practicum.shareit.item.service;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.ValidationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -69,8 +68,8 @@ class CommentServiceImplIntegrationTest {
         item = itemRepository.save(item);
 
         pastApprovedBooking = EntityBuilders.booking()
-                .start(LocalDateTime.now().minusDays(5))
-                .end(LocalDateTime.now().minusDays(3))
+                .startDate(LocalDateTime.now().minusDays(5))
+                .endDate(LocalDateTime.now().minusDays(3))
                 .status(BookingStatus.APPROVED)
                 .booker(user)
                 .item(item)
@@ -104,12 +103,12 @@ class CommentServiceImplIntegrationTest {
         CommentDto commentDto = new CommentDto();
         commentDto.setText("This should fail - no booking history");
 
-        ValidationException exception = assertThrows(
-                ValidationException.class,
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
                 () -> commentService.createComment(userWithoutBooking.getId(), item.getId(), commentDto)
         );
 
-        assertEquals("User must have an approved past booking to comment", exception.getMessage());
+        assertEquals("Вы не можете оставить отзыв, так как не бронировали эту вещь", exception.getMessage());
     }
 
     @Test
@@ -121,8 +120,8 @@ class CommentServiceImplIntegrationTest {
                 .build());
 
         Booking futureBooking = EntityBuilders.booking()
-                .start(LocalDateTime.now().plusDays(1))
-                .end(LocalDateTime.now().plusDays(2))
+                .startDate(LocalDateTime.now().plusDays(1))
+                .endDate(LocalDateTime.now().plusDays(2))
                 .status(BookingStatus.APPROVED)
                 .booker(userWithFutureBooking)
                 .item(item)
@@ -132,12 +131,12 @@ class CommentServiceImplIntegrationTest {
         CommentDto commentDto = new CommentDto();
         commentDto.setText("This should fail - future booking not completed");
 
-        ValidationException exception = assertThrows(
-                ValidationException.class,
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
                 () -> commentService.createComment(userWithFutureBooking.getId(), item.getId(), commentDto)
         );
 
-        assertEquals("User must have an approved past booking to comment", exception.getMessage());
+        assertEquals("Вы не можете оставить отзыв, так как не бронировали эту вещь", exception.getMessage());
     }
 
     @Test
@@ -149,8 +148,8 @@ class CommentServiceImplIntegrationTest {
                 .build());
 
         Booking pendingBooking = EntityBuilders.booking()
-                .start(LocalDateTime.now().minusDays(1))
-                .end(LocalDateTime.now().plusDays(1))
+                .startDate(LocalDateTime.now().minusDays(1))
+                .endDate(LocalDateTime.now().plusDays(1))
                 .status(BookingStatus.WAITING)
                 .booker(userWithPendingBooking)
                 .item(item)
@@ -160,12 +159,12 @@ class CommentServiceImplIntegrationTest {
         CommentDto commentDto = new CommentDto();
         commentDto.setText("This should fail");
 
-        ValidationException exception = assertThrows(
-                ValidationException.class,
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
                 () -> commentService.createComment(userWithPendingBooking.getId(), item.getId(), commentDto)
         );
 
-        assertEquals("User must have an approved past booking to comment", exception.getMessage());
+        assertEquals("Вы не можете оставить отзыв, так как не бронировали эту вещь", exception.getMessage());
     }
 
     @Test
@@ -179,7 +178,7 @@ class CommentServiceImplIntegrationTest {
                 () -> commentService.createComment(999L, item.getId(), commentDto)
         );
 
-        assertEquals("User not found: 999", exception.getMessage());
+        assertEquals("Пользователь не найден: 999", exception.getMessage());
     }
 
     @Test
@@ -193,7 +192,7 @@ class CommentServiceImplIntegrationTest {
                 () -> commentService.createComment(user.getId(), 999L, commentDto)
         );
 
-        assertEquals("Item not found: 999", exception.getMessage());
+        assertEquals("Вещь не найдена: 999", exception.getMessage());
     }
 
     @Test

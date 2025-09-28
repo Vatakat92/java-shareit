@@ -10,7 +10,7 @@ import ru.practicum.shareit.user.model.User;
 public class UserMapper {
     public UserDto toUserDto(User user) {
         if (user == null) {
-            log.warn("User is null in toUserDto");
+            log.error("User is null in toUserDto");
             throw new IllegalArgumentException("User cannot be null");
         }
         log.debug("Mapping User to UserDto: id={}", user.getId());
@@ -23,7 +23,7 @@ public class UserMapper {
 
     public User toUser(UserDto userDto) {
         if (userDto == null) {
-            log.warn("UserDto is null in toUser");
+            log.error("UserDto is null in toUser");
             throw new IllegalArgumentException("UserDto cannot be null");
         }
         log.debug("Mapping UserDto to User: email={}", userDto.getEmail());

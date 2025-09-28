@@ -26,25 +26,29 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({IllegalArgumentException.class, ValidationException.class})
     public ResponseEntity<ErrorResponse> handleBadRequest(RuntimeException ex) {
         String message = ex.getMessage() != null ? ex.getMessage() : "Bad request occurred";
-        return logAndBuild(HttpStatus.BAD_REQUEST, message, null, ex);
+        logError(HttpStatus.BAD_REQUEST, message, ex);
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, message, null);
     }
 
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ErrorResponse> handleConflict(ConflictException ex) {
         String message = ex.getMessage() != null ? ex.getMessage() : "Conflict occurred";
-        return logAndBuild(HttpStatus.CONFLICT, message, null, ex);
+        logError(HttpStatus.CONFLICT, message, ex);
+        return buildErrorResponse(HttpStatus.CONFLICT, message, null);
     }
 
-    @ExceptionHandler({java.lang.SecurityException.class, SecurityException.class})
+    @ExceptionHandler({java.lang.SecurityException.class, NotItemOwnerException.class})
     public ResponseEntity<ErrorResponse> handleForbidden(Exception ex) {
         String message = ex.getMessage() != null ? ex.getMessage() : "Forbidden access";
-        return logAndBuild(HttpStatus.FORBIDDEN, message, null, ex);
+        logError(HttpStatus.FORBIDDEN, message, ex);
+        return buildErrorResponse(HttpStatus.FORBIDDEN, message, null);
     }
 
     @ExceptionHandler({NoSuchElementException.class, EntityNotFoundException.class})
     public ResponseEntity<ErrorResponse> handleNotFound(RuntimeException ex) {
         String message = ex.getMessage() != null ? ex.getMessage() : "Resource not found";
-        return logAndBuild(HttpStatus.NOT_FOUND, message, null, ex);
+        logError(HttpStatus.NOT_FOUND, message, ex);
+        return buildErrorResponse(HttpStatus.NOT_FOUND, message, null);
     }
 
     @ExceptionHandler(ResponseStatusException.class)
@@ -55,7 +59,8 @@ public class GlobalExceptionHandler {
             status = HttpStatus.INTERNAL_SERVER_ERROR;
         }
         String message = ex.getReason() != null ? ex.getReason() : ex.getMessage();
-        return logAndBuild(status, message, null, ex);
+        logError(status, message, ex);
+        return buildErrorResponse(status, message, null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -66,7 +71,8 @@ public class GlobalExceptionHandler {
         String joined = fieldErrors.stream()
                 .map(fe -> fe.getField() + ": " + fe.getMessage())
                 .collect(Collectors.joining(", "));
-        return logAndBuild(HttpStatus.BAD_REQUEST, "Validation failed: " + joined, fieldErrors, ex);
+        logError(HttpStatus.BAD_REQUEST, "Validation failed: " + joined, ex);
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Validation failed: " + joined, fieldErrors);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -81,7 +87,8 @@ public class GlobalExceptionHandler {
         String joined = fieldErrors.stream()
                 .map(fe -> fe.getField() + ": " + fe.getMessage())
                 .collect(Collectors.joining(", "));
-        return logAndBuild(HttpStatus.BAD_REQUEST, "Validation failed: " + joined, fieldErrors, ex);
+        logError(HttpStatus.BAD_REQUEST, "Validation failed: " + joined, ex);
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Validation failed: " + joined, fieldErrors);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -90,41 +97,35 @@ public class GlobalExceptionHandler {
         String value = ex.getValue() != null ? ex.getValue().toString() : "null";
         String message = String.format("Parameter '%s' should be a valid '%s' but was '%s'",
                 ex.getName(), typeName, value);
-        return logAndBuild(HttpStatus.BAD_REQUEST, message, null, ex);
+        logError(HttpStatus.BAD_REQUEST, message, ex);
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, message, null);
     }
 
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<ErrorResponse> handleMissingHeader(MissingRequestHeaderException ex) {
         String message = "Required request header '" + ex.getHeaderName() + "' is not present";
-        return logAndBuild(HttpStatus.BAD_REQUEST, message, null, ex);
+        logError(HttpStatus.BAD_REQUEST, message, ex);
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, message, null);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex) {
         String message = "Malformed JSON request";
-        return logAndBuild(HttpStatus.BAD_REQUEST, message, null, ex);
+        logError(HttpStatus.BAD_REQUEST, message, ex);
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, message, null);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleOther(Exception ex) {
-        return logAndBuild(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", null, ex);
+        logError(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", ex);
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", null);
     }
 
-    private ResponseEntity<ErrorResponse> logAndBuild(HttpStatus status, String message,
-                                                      List<FieldErrorDto> errors, Exception ex) {
-        if (status.is4xxClientError()) {
-            if (ex != null && ex.getMessage() != null) {
-                log.warn("{} {}: {}", status.value(), status.getReasonPhrase(), ex.getMessage());
-            } else {
-                log.warn("{} {}: {}", status.value(), status.getReasonPhrase(), message);
-            }
-        } else {
-            log.error("{} {}: {}", status.value(), status.getReasonPhrase(), message, ex);
-        }
-        return build(status, message, errors);
+    private void logError(HttpStatus status, String message, Exception ex) {
+        log.error("{} {}: {}", status.value(), status.getReasonPhrase(), message, ex);
     }
 
-    private ResponseEntity<ErrorResponse> build(HttpStatus status, String message, List<FieldErrorDto> errors) {
+    private ResponseEntity<ErrorResponse> buildErrorResponse(HttpStatus status, String message, List<FieldErrorDto> errors) {
         ErrorResponse body = ErrorResponse.builder()
                 .status(status.value())
                 .error(status.getReasonPhrase())

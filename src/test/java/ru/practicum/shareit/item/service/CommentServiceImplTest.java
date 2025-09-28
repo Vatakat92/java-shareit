@@ -1,7 +1,6 @@
 package ru.practicum.shareit.item.service;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.ValidationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -72,8 +71,8 @@ class CommentServiceImplTest {
 
         pastApprovedBooking = EntityBuilders.booking()
                 .id(1L)
-                .start(LocalDateTime.now().minusDays(3))
-                .end(LocalDateTime.now().minusDays(2))
+                .startDate(LocalDateTime.now().minusDays(3))
+                .endDate(LocalDateTime.now().minusDays(2))
                 .status(BookingStatus.APPROVED)
                 .booker(user)
                 .item(item)
@@ -123,7 +122,7 @@ class CommentServiceImplTest {
                 () -> commentService.createComment(1L, 1L, commentDto)
         );
 
-        assertEquals("User not found: 1", exception.getMessage());
+        assertEquals("Пользователь не найден: 1", exception.getMessage());
 
         verify(userRepository).findById(1L);
         verifyNoInteractions(itemRepository);
@@ -142,7 +141,7 @@ class CommentServiceImplTest {
                 () -> commentService.createComment(1L, 1L, commentDto)
         );
 
-        assertEquals("Item not found: 1", exception.getMessage());
+        assertEquals("Вещь не найдена: 1", exception.getMessage());
 
         verify(userRepository).findById(1L);
         verify(itemRepository).findById(1L);
@@ -151,19 +150,19 @@ class CommentServiceImplTest {
     }
 
     @Test
-    @DisplayName("Should throw ValidationException when user has no past approved booking")
-    void createComment_WhenUserHasNoPastApprovedBooking_ShouldThrowValidationException() {
+    @DisplayName("Should throw IllegalArgumentException when user has no past approved booking")
+    void createComment_WhenUserHasNoPastApprovedBooking_ShouldThrowIllegalArgumentException() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         when(bookingRepository.findPastApprovedForComment(eq(1L), eq(1L), any(LocalDateTime.class)))
                 .thenReturn(Optional.empty());
 
-        ValidationException exception = assertThrows(
-                ValidationException.class,
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
                 () -> commentService.createComment(1L, 1L, commentDto)
         );
 
-        assertEquals("User must have an approved past booking to comment", exception.getMessage());
+        assertEquals("Вы не можете оставить отзыв, так как не бронировали эту вещь", exception.getMessage());
 
         verify(userRepository).findById(1L);
         verify(itemRepository).findById(1L);
@@ -172,12 +171,12 @@ class CommentServiceImplTest {
     }
 
     @Test
-    @DisplayName("Should throw ValidationException when user has future booking")
-    void createComment_WhenUserHasFutureBooking_ShouldThrowValidationException() {
+    @DisplayName("Should throw IllegalArgumentException when user has future booking")
+    void createComment_WhenUserHasFutureBooking_ShouldThrowIllegalArgumentException() {
         Booking futureBooking = EntityBuilders.booking()
                 .id(2L)
-                .start(LocalDateTime.now().plusDays(1))
-                .end(LocalDateTime.now().plusDays(2))
+                .startDate(LocalDateTime.now().plusDays(1))
+                .endDate(LocalDateTime.now().plusDays(2))
                 .status(BookingStatus.APPROVED)
                 .booker(user)
                 .item(item)
@@ -188,21 +187,21 @@ class CommentServiceImplTest {
         when(bookingRepository.findPastApprovedForComment(eq(1L), eq(1L), any(LocalDateTime.class)))
                 .thenReturn(Optional.empty());
 
-        ValidationException exception = assertThrows(
-                ValidationException.class,
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
                 () -> commentService.createComment(1L, 1L, commentDto)
         );
 
-        assertEquals("User must have an approved past booking to comment", exception.getMessage());
+        assertEquals("Вы не можете оставить отзыв, так как не бронировали эту вещь", exception.getMessage());
     }
 
     @Test
-    @DisplayName("Should throw ValidationException when user has pending booking")
-    void createComment_WhenUserHasPendingBooking_ShouldThrowValidationException() {
+    @DisplayName("Should throw IllegalArgumentException when user has pending booking")
+    void createComment_WhenUserHasPendingBooking_ShouldThrowIllegalArgumentException() {
         Booking pendingBooking = EntityBuilders.booking()
                 .id(3L)
-                .start(LocalDateTime.now().minusDays(1))
-                .end(LocalDateTime.now().plusDays(1))
+                .startDate(LocalDateTime.now().minusDays(1))
+                .endDate(LocalDateTime.now().plusDays(1))
                 .status(BookingStatus.WAITING)
                 .booker(user)
                 .item(item)
@@ -213,11 +212,11 @@ class CommentServiceImplTest {
         when(bookingRepository.findPastApprovedForComment(eq(1L), eq(1L), any(LocalDateTime.class)))
                 .thenReturn(Optional.empty());
 
-        ValidationException exception = assertThrows(
-                ValidationException.class,
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
                 () -> commentService.createComment(1L, 1L, commentDto)
         );
 
-        assertEquals("User must have an approved past booking to comment", exception.getMessage());
+        assertEquals("Вы не можете оставить отзыв, так как не бронировали эту вещь", exception.getMessage());
     }
 }

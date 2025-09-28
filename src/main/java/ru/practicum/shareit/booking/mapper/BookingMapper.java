@@ -1,68 +1,73 @@
 package ru.practicum.shareit.booking.mapper;
 
-import ru.practicum.shareit.booking.dto.*;
+import ru.practicum.shareit.booking.dto.BookingDto;
+import ru.practicum.shareit.booking.dto.BookingResponseDto;
+import ru.practicum.shareit.booking.dto.BookingShortDto;
+import ru.practicum.shareit.item.dto.ItemShortDto;
 import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.dto.UserShortDto;
 
 public class BookingMapper {
+
     public static BookingResponseDto toResponseDto(Booking booking) {
         if (booking == null) {
             return null;
         }
-        BookingResponseDto dto = new BookingResponseDto();
-        dto.setId(booking.getId());
-        dto.setStart(booking.getStart());
-        dto.setEnd(booking.getEnd());
+
         Item item = booking.getItem();
+        ItemShortDto itemDto = null;
         if (item != null) {
-            ItemShortDto itemDto = new ItemShortDto();
-            itemDto.setId(item.getId());
-            itemDto.setName(item.getName());
-            itemDto.setDescription(item.getDescription());
-            itemDto.setAvailable(item.getAvailable());
-            if (item.getRequest() != null) {
-                itemDto.setRequestId(item.getRequest().getId());
-            } else {
-                itemDto.setRequestId(null);
-            }
-            dto.setItem(itemDto);
+            itemDto = ItemShortDto.builder()
+                    .id(item.getId())
+                    .name(item.getName())
+                    .description(item.getDescription())
+                    .available(item.getAvailable())
+                    .requestId(item.getRequest() != null ? item.getRequest().getId() : null)
+                    .build();
         }
 
         User booker = booking.getBooker();
+        UserShortDto bookerDto = null;
         if (booker != null) {
-            UserShortDto bookerDto = new UserShortDto();
-            bookerDto.setId(booker.getId());
-            bookerDto.setName(booker.getName());
-            dto.setBooker(bookerDto);
+            bookerDto = UserShortDto.builder()
+                    .id(booker.getId())
+                    .name(booker.getName())
+                    .build();
         }
 
-        dto.setStatus(booking.getStatus());
-        return dto;
+        return BookingResponseDto.builder()
+                .id(booking.getId())
+                .start(booking.getStartDate())
+                .end(booking.getEndDate())
+                .item(itemDto)
+                .booker(bookerDto)
+                .status(booking.getStatus())
+                .build();
     }
 
     public static BookingShortDto toShortDto(Booking booking) {
         if (booking == null) {
             return null;
         }
-        BookingShortDto dto = new BookingShortDto();
-        dto.setId(booking.getId());
-        dto.setBookerId(booking.getBooker().getId());
-        dto.setStart(booking.getStart());
-        dto.setEnd(booking.getEnd());
-        return dto;
+        return BookingShortDto.builder()
+                .id(booking.getId())
+                .bookerId(booking.getBooker() != null ? booking.getBooker().getId() : null)
+                .startDate(booking.getStartDate())
+                .endDate(booking.getEndDate())
+                .build();
     }
 
     public static Booking toEntity(BookingDto dto, Item item, User booker) {
         if (dto == null) {
             return null;
         }
-        Booking booking = new Booking();
-        booking.setStart(dto.getStart());
-        booking.setEnd(dto.getEnd());
-        booking.setItem(item);
-        booking.setBooker(booker);
-        return booking;
+        return Booking.builder()
+                .startDate(dto.getStart())
+                .endDate(dto.getEnd())
+                .item(item)
+                .booker(booker)
+                .build();
     }
 }

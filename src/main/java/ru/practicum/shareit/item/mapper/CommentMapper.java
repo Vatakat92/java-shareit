@@ -10,28 +10,26 @@ public class CommentMapper {
         if (comment == null) {
             return null;
         }
-        CommentDto dto = new CommentDto();
-        dto.setId(comment.getId());
-        dto.setText(comment.getText());
-        dto.setItemId(comment.getItem() != null ? comment.getItem().getId() : null);
-        dto.setAuthorId(comment.getAuthor() != null ? comment.getAuthor().getId() : null);
-        if (comment.getAuthor() != null) {
-            dto.setAuthorName(comment.getAuthor().getName());
-        }
-        dto.setCreated(comment.getCreated());
-        return dto;
+        return CommentDto.builder()
+                .id(comment.getId())
+                .text(comment.getText())
+                .itemId(comment.getItem() != null ? comment.getItem().getId() : null)
+                .authorId(comment.getAuthor() != null ? comment.getAuthor().getId() : null)
+                .authorName(comment.getAuthor() != null ? comment.getAuthor().getName() : null)
+                .created(comment.getCreated())
+                .build();
     }
 
     public static Comment toEntity(CommentDto dto, Item item, User author) {
         if (dto == null) {
             return null;
         }
-        Comment comment = new Comment();
-        comment.setId(dto.getId());
-        comment.setText(dto.getText());
-        comment.setItem(item);
-        comment.setAuthor(author);
-        comment.setCreated(dto.getCreated());
-        return comment;
+        return Comment.builder()
+                .id(dto.getId())
+                .text(dto.getText())
+                .item(item)
+                .author(author)
+                .created(dto.getCreated())
+                .build();
     }
 }

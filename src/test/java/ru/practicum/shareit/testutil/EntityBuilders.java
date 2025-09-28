@@ -77,13 +77,13 @@ public class EntityBuilders {
             return this;
         }
 
-        public BookingBuilder start(LocalDateTime start) {
-            booking.setStart(start);
+        public BookingBuilder startDate(LocalDateTime startDate) {
+            booking.setStartDate(startDate);
             return this;
         }
 
-        public BookingBuilder end(LocalDateTime end) {
-            booking.setEnd(end);
+        public BookingBuilder endDate(LocalDateTime endDate) {
+            booking.setEndDate(endDate);
             return this;
         }
 

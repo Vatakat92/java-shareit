@@ -24,19 +24,19 @@ public class UserServiceImpl implements UserService {
     public UserDto createUser(UserDto userDto) {
         log.debug("Creating user with email: {}", userDto != null ? userDto.getEmail() : null);
         if (userDto == null) {
-            log.warn("UserDto is null");
+            log.error("UserDto is null");
             throw new IllegalArgumentException("UserDto cannot be null");
         }
         if (userDto.getEmail() == null || userDto.getEmail().isBlank()) {
-            log.warn("Email is null or blank");
+            log.error("Email is null or blank");
             throw new IllegalArgumentException("Email cannot be null or blank");
         }
         if (userDto.getName() == null || userDto.getName().isBlank()) {
-            log.warn("Name is null or blank");
+            log.error("Name is null or blank");
             throw new IllegalArgumentException("Name cannot be null or blank");
         }
         if (userRepository.existsByEmail(userDto.getEmail())) {
-            log.warn("Email already exists: {}", userDto.getEmail());
+            log.error("Email already exists: {}", userDto.getEmail());
             throw new ConflictException("Email already exists: " + userDto.getEmail());
         }
         try {
@@ -63,16 +63,16 @@ public class UserServiceImpl implements UserService {
     public UserDto updateUser(Long userId, UserDto userDto) {
         log.debug("Updating user with id: {}", userId);
         if (userId == null) {
-            log.warn("User ID is null");
+            log.error("User ID is null");
             throw new IllegalArgumentException("User ID cannot be null");
         }
         if (userDto == null) {
-            log.warn("UserDto is null");
+            log.error("UserDto is null");
             throw new IllegalArgumentException("UserDto cannot be null");
         }
         User existingUser = userRepository.findById(userId)
                 .orElseThrow(() -> {
-                    log.warn("User not found: {}", userId);
+                    log.error("User not found: {}", userId);
                     return new NoSuchElementException("User not found: " + userId);
                 });
         if (userDto.getEmail() != null && !userDto.getEmail().isBlank() && !userDto.getEmail().equals(existingUser.getEmail())) {

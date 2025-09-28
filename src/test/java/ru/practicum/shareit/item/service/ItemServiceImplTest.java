@@ -12,7 +12,7 @@ import org.springframework.data.domain.PageRequest;
 import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.model.BookingStatus;
 import ru.practicum.shareit.booking.repository.BookingRepository;
-import ru.practicum.shareit.exception.SecurityException;
+import ru.practicum.shareit.exception.NotItemOwnerException;
 import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.dto.ItemResponseDto;
 import ru.practicum.shareit.item.model.Comment;
@@ -99,8 +99,8 @@ class ItemServiceImplTest {
 
         lastBooking = EntityBuilders.booking()
                 .id(1L)
-                .start(LocalDateTime.now().minusDays(5))
-                .end(LocalDateTime.now().minusDays(3))
+                .startDate(LocalDateTime.now().minusDays(5))
+                .endDate(LocalDateTime.now().minusDays(3))
                 .status(BookingStatus.APPROVED)
                 .booker(booker)
                 .item(item)
@@ -108,8 +108,8 @@ class ItemServiceImplTest {
 
         nextBooking = EntityBuilders.booking()
                 .id(2L)
-                .start(LocalDateTime.now().plusDays(1))
-                .end(LocalDateTime.now().plusDays(3))
+                .startDate(LocalDateTime.now().plusDays(1))
+                .endDate(LocalDateTime.now().plusDays(3))
                 .status(BookingStatus.APPROVED)
                 .booker(booker)
                 .item(item)
@@ -183,8 +183,8 @@ class ItemServiceImplTest {
     void updateItem_WhenNonOwner_ShouldThrowSecurityException() {
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
 
-        SecurityException exception = assertThrows(
-                SecurityException.class,
+        NotItemOwnerException exception = assertThrows(
+                NotItemOwnerException.class,
                 () -> itemService.updateItem(2L, 1L, itemDto)
         );
 

@@ -77,11 +77,6 @@ public class ItemController {
 
         ItemResponseDto item = itemService.getItem(itemId, userId);
 
-        // Ensure comments list is never null
-        if (item.getComments() == null) {
-            item.setComments(List.of());
-        }
-
         return ResponseEntity.ok(item);
     }
 
