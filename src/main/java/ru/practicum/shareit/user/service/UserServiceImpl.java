@@ -3,14 +3,12 @@ package ru.practicum.shareit.user.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.validation.annotation.Validated;
 import ru.practicum.shareit.exception.ConflictException;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.mapper.UserMapper;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.repository.UserRepository;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -18,113 +16,129 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Validated
 public class UserServiceImpl implements UserService {
-    private static final Comparator<User> BY_ID = Comparator.comparing(User::getId);
     private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
-    private void validateUserDtoNotNull(UserDto dto) {
-        if (dto == null) {
-            log.error("User DTO cannot be null");
-            throw new IllegalArgumentException("User DTO cannot be null");
+    @Override
+    public UserDto createUser(UserDto userDto) {
+        log.debug("Creating user with email: {}", userDto != null ? userDto.getEmail() : null);
+        if (userDto == null) {
+            log.error("UserDto is null");
+            throw new IllegalArgumentException("UserDto cannot be null");
+        }
+        if (userDto.getEmail() == null || userDto.getEmail().isBlank()) {
+            log.error("Email is null or blank");
+            throw new IllegalArgumentException("Email cannot be null or blank");
+        }
+        if (userDto.getName() == null || userDto.getName().isBlank()) {
+            log.error("Name is null or blank");
+            throw new IllegalArgumentException("Name cannot be null or blank");
+        }
+        if (userRepository.existsByEmail(userDto.getEmail())) {
+            log.error("Email already exists: {}", userDto.getEmail());
+            throw new ConflictException("Email already exists: " + userDto.getEmail());
+        }
+        try {
+            User user = userMapper.toUser(userDto);
+            if (user == null) {
+                log.error("Failed to map UserDto to User for email: {}", userDto.getEmail());
+                throw new IllegalStateException("Failed to map UserDto to User");
+            }
+            User savedUser = userRepository.save(user);
+            UserDto result = userMapper.toUserDto(savedUser);
+            if (result == null) {
+                log.error("Failed to map saved User to UserDto for id: {}", savedUser.getId());
+                throw new IllegalStateException("Failed to map User to UserDto");
+            }
+            log.info("User created: id={} email={}", result.getId(), result.getEmail());
+            return result;
+        } catch (Exception e) {
+            log.error("Error creating user: {}", e.getMessage(), e);
+            throw e;
         }
     }
 
-    private void validateIdNotNull(Long id) {
-        if (id == null) {
-            log.error("User ID cannot be null");
+    @Override
+    public UserDto updateUser(Long userId, UserDto userDto) {
+        log.debug("Updating user with id: {}", userId);
+        if (userId == null) {
+            log.error("User ID is null");
             throw new IllegalArgumentException("User ID cannot be null");
         }
-    }
-
-    private User getExistingUser(Long id) {
-        return userRepository.findById(id)
+        if (userDto == null) {
+            log.error("UserDto is null");
+            throw new IllegalArgumentException("UserDto cannot be null");
+        }
+        User existingUser = userRepository.findById(userId)
                 .orElseThrow(() -> {
-                    log.warn("User not found: {}", id);
-                    return new NoSuchElementException("User not found with id: " + id);
+                    log.error("User not found: {}", userId);
+                    return new NoSuchElementException("User not found: " + userId);
                 });
-    }
-
-    @Override
-    public UserDto createUser(UserDto dto) {
-        validateUserDtoNotNull(dto);
-        log.info("Create user: email={}", dto.getEmail());
-
-        if (userRepository.existsByEmail(dto.getEmail())) {
-            log.warn("User with email {} already exists", dto.getEmail());
-            throw new ConflictException("User with email " + dto.getEmail() + " already exists");
-        }
-
-        User savedUser = userRepository.save(UserMapper.toUser(dto));
-        log.info("User created: id={} email={}", savedUser.getId(), savedUser.getEmail());
-        return UserMapper.toUserDto(savedUser);
-    }
-
-    @Override
-    public UserDto updateUser(Long id, UserDto dto) {
-        validateUserDtoNotNull(dto);
-        log.info("Update user: id={}", id);
-
-        User existingUser = getExistingUser(id);
-
-        boolean changed = false;
-
-        if (dto.getEmail() != null && !dto.getEmail().equals(existingUser.getEmail())) {
-            if (userRepository.existsByEmail(dto.getEmail())) {
-                log.warn("Email {} is already in use", dto.getEmail());
-                throw new ConflictException("Email " + dto.getEmail() + " is already in use");
+        if (userDto.getEmail() != null && !userDto.getEmail().isBlank() && !userDto.getEmail().equals(existingUser.getEmail())) {
+            if (userRepository.existsByEmail(userDto.getEmail())) {
+                log.warn("Email already exists: {}", userDto.getEmail());
+                throw new ConflictException("Email already exists: " + userDto.getEmail());
             }
-            existingUser.setEmail(dto.getEmail());
-            changed = true;
+            existingUser.setEmail(userDto.getEmail());
         }
-        if (dto.getName() != null && !dto.getName().equals(existingUser.getName())) {
-            existingUser.setName(dto.getName());
-            changed = true;
+        if (userDto.getName() != null && !userDto.getName().isBlank()) {
+            existingUser.setName(userDto.getName());
         }
-
-        if (!changed) {
-            log.debug("No changes for user id={}, skipping save", id);
-            return UserMapper.toUserDto(existingUser);
-        }
-
-        userRepository.save(existingUser);
-        log.info("User updated: id={}", id);
-        return UserMapper.toUserDto(existingUser);
+        User updatedUser = userRepository.save(existingUser);
+        UserDto result = userMapper.toUserDto(updatedUser);
+        log.info("User updated: id={} email={}", result.getId(), result.getEmail());
+        return result;
     }
 
     @Override
-    public UserDto getUserById(Long id) {
-        validateIdNotNull(id);
-        log.debug("Get user: id={}", id);
-
-        User user = getExistingUser(id);
-        log.debug("Got user: id={}", id);
-        return UserMapper.toUserDto(user);
+    public UserDto getUser(Long userId) {
+        log.debug("Getting user with id: {}", userId);
+        if (userId == null) {
+            log.warn("User ID is null");
+            throw new IllegalArgumentException("User ID cannot be null");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> {
+                    log.warn("User not found: {}", userId);
+                    return new NoSuchElementException("User not found: " + userId);
+                });
+        UserDto result = userMapper.toUserDto(user);
+        if (result == null) {
+            log.error("Failed to map User to UserDto for id: {}", userId);
+            throw new IllegalStateException("Failed to map User to UserDto");
+        }
+        return result;
     }
 
     @Override
     public List<UserDto> getAllUsers() {
-        log.debug("Get users list");
-        List<UserDto> users = userRepository.findAll().stream()
-                .sorted(BY_ID)
-                .map(UserMapper::toUserDto)
+        log.debug("Getting all users");
+        return userRepository.findAll()
+                .stream()
+                .map(user -> {
+                    UserDto dto = userMapper.toUserDto(user);
+                    if (dto == null) {
+                        log.error("Failed to map User to UserDto for id: {}", user.getId());
+                        throw new IllegalStateException("Failed to map User to UserDto");
+                    }
+                    return dto;
+                })
                 .collect(Collectors.toList());
-        log.debug("Users found: {}", users.size());
-        return users;
     }
 
     @Override
-    public void deleteUser(Long id) {
-        validateIdNotNull(id);
-        log.info("Delete user: id={}", id);
-
-        if (!userRepository.existsById(id)) {
-            log.warn("User not found for deletion: {}", id);
-            throw new NoSuchElementException("User not found with id: " + id);
+    public void deleteUser(Long userId) {
+        log.debug("Deleting user with id: {}", userId);
+        if (userId == null) {
+            log.warn("User ID is null");
+            throw new IllegalArgumentException("User ID cannot be null");
         }
-
-        userRepository.deleteById(id);
-        log.info("User deleted: id={}", id);
+        if (!userRepository.existsById(userId)) {
+            log.warn("User not found: {}", userId);
+            throw new NoSuchElementException("User not found: " + userId);
+        }
+        userRepository.deleteById(userId);
+        log.info("User deleted: id={}", userId);
     }
 }
-

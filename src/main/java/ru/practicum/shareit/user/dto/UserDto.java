@@ -2,22 +2,25 @@ package ru.practicum.shareit.user.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 import ru.practicum.shareit.validation.Create;
 import ru.practicum.shareit.validation.Update;
 
-@Data
-@AllArgsConstructor
+@Getter
+@Setter
+@ToString
+@EqualsAndHashCode(of = "id")
 @NoArgsConstructor
+@AllArgsConstructor
+@SuperBuilder
 public class UserDto {
     private Long id;
-    @NotBlank(message = "name must not be blank", groups = {Create.class})
-    @Size(min = 1, message = "name must not be blank", groups = {Update.class})
+
+    @NotBlank(message = "Name cannot be blank", groups = {Create.class})
     private String name;
-    @NotBlank(message = "email must not be blank", groups = {Create.class})
-    @Email(message = "email must be a well-formed email address", groups = {Create.class, Update.class})
+
+    @NotBlank(message = "Email cannot be blank", groups = {Create.class})
+    @Email(message = "Email must be valid", groups = {Create.class, Update.class})
     private String email;
 }
