@@ -1,17 +1,13 @@
 package ru.practicum.shareit.booking.controller;
 
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.booking.dto.BookingCreateDto;
 import ru.practicum.shareit.booking.dto.BookingResponseDto;
 import ru.practicum.shareit.booking.service.BookingService;
 
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 @RestController
@@ -25,7 +21,7 @@ public class BookingController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public BookingResponseDto createBooking(@RequestHeader("X-Sharer-User-Id") Long userId,
-                                            @RequestBody  BookingCreateDto bookingDto) {
+                                            @RequestBody BookingCreateDto bookingDto) {
         log.info("Server → create booking, userId={} itemId={}", userId, bookingDto.getItemId());
         return bookingService.createBooking(userId, bookingDto);
     }
@@ -49,8 +45,8 @@ public class BookingController {
     @GetMapping
     public List<BookingResponseDto> getUserBookings(@RequestHeader("X-Sharer-User-Id") Long userId,
                                                     @RequestParam(defaultValue = "ALL") String state,
-                                                    @RequestParam(defaultValue = "0") @Min(0) int from,
-                                                    @RequestParam(defaultValue = "10") @Min(1) int size) {
+                                                    @RequestParam(defaultValue = "0") int from,
+                                                    @RequestParam(defaultValue = "10") int size) {
         log.info("Server → list user bookings, userId={}, state={}, from={}, size={}", userId, state, from, size);
         return bookingService.getUserBookings(userId, state, from, size);
     }
@@ -58,8 +54,8 @@ public class BookingController {
     @GetMapping("/owner")
     public List<BookingResponseDto> getOwnerBookings(@RequestHeader("X-Sharer-User-Id") Long userId,
                                                      @RequestParam(defaultValue = "ALL") String state,
-                                                     @RequestParam(defaultValue = "0") @Min(0) int from,
-                                                     @RequestParam(defaultValue = "10") @Min(1) int size) {
+                                                     @RequestParam(defaultValue = "0") int from,
+                                                     @RequestParam(defaultValue = "10") int size) {
         log.info("Server → list owner bookings, userId={}, state={}, from={}, size={}", userId, state, from, size);
         return bookingService.getOwnerBookings(userId, state, from, size);
     }

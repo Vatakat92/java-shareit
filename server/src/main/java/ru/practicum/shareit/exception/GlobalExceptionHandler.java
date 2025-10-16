@@ -22,7 +22,7 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, message, null);
     }
 
-    @ExceptionHandler({IllegalArgumentException.class, jakarta.validation.ValidationException.class})
+    @ExceptionHandler({IllegalArgumentException.class})
     public ResponseEntity<ErrorResponse> handleBadRequest(RuntimeException ex) {
         String message = ex.getMessage() != null ? ex.getMessage() : "Bad request occurred";
         logError(HttpStatus.BAD_REQUEST, message, ex);
