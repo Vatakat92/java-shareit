@@ -28,30 +28,30 @@ public class UserClient extends BaseClient {
     }
 
     public ResponseEntity<Object> create(UserCreateDto userCreateDto) {
-        log.debug("Creating user: {}", userCreateDto.getEmail());
+        log.info("Creating user: {}", userCreateDto.getEmail());
         ResponseEntity<Object> response = post("", userCreateDto);
-        log.debug("User creation response: status={}, body={}",
+        log.info("User creation response: status={}, body={}",
                 response.getStatusCode(), response.getBody());
         return response;
     }
 
     public ResponseEntity<Object> getById(Long userId) {
-        log.debug("Getting user by id: {}", userId);
+        log.info("Getting user by id: {}", userId);
         return get("/" + userId, userId);
     }
 
     public ResponseEntity<Object> getAll() {
-        log.debug("Getting all users");
+        log.info("Getting all users");
         return get("",null);
     }
 
     public ResponseEntity<Object> update(Long userId, UserUpdateDto userUpdateDto) {
-        log.debug("Updating user: {}, data: {}", userId, userUpdateDto);
+        log.info("Updating user: {}, data: {}", userId, userUpdateDto);
         return patch("/" + userId, userId, userUpdateDto);
     }
 
     public ResponseEntity<Object> delete(Long userId) {
-        log.debug("Deleting user: {}", userId);
+        log.info("Deleting user: {}", userId);
         return delete("/" + userId, userId);
     }
 }

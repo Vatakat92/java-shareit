@@ -6,6 +6,9 @@ import ru.practicum.shareit.item.model.Comment;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.user.model.User;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+
 public class CommentMapper {
     public static CommentDto toDto(Comment comment) {
         if (comment == null) {
@@ -29,7 +32,7 @@ public class CommentMapper {
                 .text(dto.getText())
                 .item(item)
                 .author(author)
-                .created(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC))
+                .created(LocalDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 }

@@ -18,7 +18,6 @@ import java.util.List;
 @RequestMapping("/bookings")
 @RequiredArgsConstructor
 @Slf4j
-@Validated
 public class BookingController {
 
     private final BookingService bookingService;
@@ -26,7 +25,7 @@ public class BookingController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public BookingResponseDto createBooking(@RequestHeader("X-Sharer-User-Id") Long userId,
-                                            @RequestBody @NotNull @Valid BookingCreateDto bookingDto) {
+                                            @RequestBody  BookingCreateDto bookingDto) {
         log.info("Server → create booking, userId={} itemId={}", userId, bookingDto.getItemId());
         return bookingService.createBooking(userId, bookingDto);
     }
