@@ -32,7 +32,7 @@ class UserControllerTest {
     private UserService userService;
 
     @Test
-    void createUser_WhenValidData_ShouldReturnCreated() throws Exception {
+    void createUserWhenValidData() throws Exception {
         UserCreateDto userDto = new UserCreateDto();
         userDto.setName("Test User");
         userDto.setEmail("test@mail.com");
@@ -54,7 +54,7 @@ class UserControllerTest {
     }
 
     @Test
-    void getUserById_WhenValidData_ShouldReturnOk() throws Exception {
+    void getUserByIdWhenValidData() throws Exception {
         UserDto responseDto = new UserDto();
         responseDto.setId(1L);
         responseDto.setName("Test User");
@@ -70,7 +70,7 @@ class UserControllerTest {
     }
 
     @Test
-    void getAllUsers_WhenValidData_ShouldReturnOk() throws Exception {
+    void getAllUsersWhenValidData() throws Exception {
         UserDto responseDto = new UserDto();
         responseDto.setId(1L);
         responseDto.setName("Test User");
@@ -84,7 +84,7 @@ class UserControllerTest {
     }
 
     @Test
-    void updateUser_WhenValidData_ShouldReturnOk() throws Exception {
+    void updateUserWhenValidData() throws Exception {
         UserUpdateDto updateDto = new UserUpdateDto();
         updateDto.setName("Updated User");
         updateDto.setEmail("updated@mail.com");
@@ -106,7 +106,7 @@ class UserControllerTest {
     }
 
     @Test
-    void deleteUserById_WhenValidData_ShouldReturnNoContent() throws Exception {
+    void deleteUserByIdWhenValidData() throws Exception {
         mockMvc.perform(delete("/users/1"))
                 .andExpect(status().isNoContent());
     }
